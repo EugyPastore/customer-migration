@@ -1,0 +1,751 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>html{color-scheme:light}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Customer Migration</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one large chord wheel as the hero, a narrow side column (month story, month summary, traced path), and a compact month strip under the wheel. */
+:root {
+  --bg: #f3f4f7;
+  --panel: #ffffff;
+  --ink: #14161b;
+  --muted: #5a5f6e;
+  --faint: #8a8f9c;
+  --line: #e2e4ea;
+  --hover: #eceef3;
+  --accent: #4a3aa7;
+  --free: #2a78d6; --starter: #eb6834; --pro: #1baf7a; --team: #eda100; --churned: #9c9fa8;
+  --up: #0ca30c; --down: #ec835a; --churn: #d03b3b; --winback: #2a78d6;
+  --up-ink: #0a7a0a; --down-ink: #b4502a;
+  --font-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", "Helvetica Neue", Arial, system-ui, sans-serif;
+  --font-data: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #101216; --panel: #181b21; --ink: #f1f2f5; --muted: #a6abb8; --faint: #7d8290; --line: #2a2e37; --hover: #22262e;
+    --accent: #9085e9;
+    --free: #3987e5; --starter: #d95926; --pro: #199e70; --team: #c98500; --churned: #6e727d;
+    --up: #0ca30c; --down: #ec835a; --churn: #d03b3b; --winback: #3987e5;
+    --up-ink: #4cc94c; --down-ink: #f09a77;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #101216; --panel: #181b21; --ink: #f1f2f5; --muted: #a6abb8; --faint: #7d8290; --line: #2a2e37; --hover: #22262e;
+  --accent: #9085e9;
+  --free: #3987e5; --starter: #d95926; --pro: #199e70; --team: #c98500; --churned: #6e727d;
+  --up: #0ca30c; --down: #ec835a; --churn: #d03b3b; --winback: #3987e5;
+  --up-ink: #4cc94c; --down-ink: #f09a77;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 14px; line-height: 1.5; }
+.wrap { max-width: 1180px; margin: 0 auto; padding-inline: 20px; padding-block: 28px 48px; display: grid; gap: 20px; }
+
+.eyebrow { font-family: var(--font-data); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 4px; }
+h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(28px, 4vw, 40px); line-height: 1.05; margin: 0; letter-spacing: -0.02em; }
+.lede { color: var(--muted); max-width: 64ch; margin: 6px 0 0; }
+
+.stage { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 880px) { .stage { grid-template-columns: minmax(0, 1fr); } }
+
+.wheel { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 14px; display: grid; gap: 10px; }
+.wheel-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px; padding: 2px 6px 0; }
+.stamp { font-family: var(--font-display); font-weight: 700; font-size: 24px; letter-spacing: -0.01em; }
+.stamp small { font-family: var(--font-data); font-weight: 400; font-size: 12px; color: var(--faint); margin-left: 6px; }
+.play { display: inline-flex; align-items: center; gap: 8px; font: 500 12px/1 var(--font-body); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 999px; padding: 7px 12px 7px 10px; cursor: pointer; transition: background-color .15s; }
+.play:hover { background: var(--hover); }
+.play svg { width: 11px; height: 11px; fill: currentColor; }
+.wheel svg#chord { width: 100%; height: auto; display: block; }
+
+.ribbon { stroke: var(--panel); stroke-width: .75; cursor: pointer; transition: fill-opacity .2s; }
+.seg { cursor: pointer; transition: fill-opacity .2s; }
+.band { cursor: pointer; transition: opacity .2s; }
+.tick line { stroke: var(--faint); stroke-width: 1; }
+.tick text { font-family: var(--font-data); font-size: 9px; fill: var(--faint); }
+.plan-name { font-family: var(--font-body); font-weight: 600; font-size: 14px; fill: var(--ink); }
+.plan-sub { font-family: var(--font-data); font-size: 10.5px; fill: var(--muted); }
+.flow-num { font-family: var(--font-data); font-size: 10.5px; font-weight: 500; fill: var(--ink); paint-order: stroke; stroke: var(--panel); stroke-width: 3px; stroke-linejoin: round; pointer-events: none; }
+
+.key { display: flex; flex-wrap: wrap; gap: 8px 18px; padding: 0 6px; font-size: 12px; color: var(--muted); }
+.key span { display: inline-flex; align-items: center; gap: 6px; }
+.key i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+.key .how { color: var(--faint); flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 6px 18px; }
+.swatch-out { width: 18px !important; height: 8px !important; background: var(--muted); }
+.swatch-in { width: 18px !important; height: 8px !important; background: var(--muted); opacity: .38; }
+
+.months { display: grid; grid-template-columns: repeat(12, minmax(30px, 1fr)); gap: 3px; overflow-x: auto; border-top: 1px solid var(--line); padding-top: 10px; }
+.month { border: 0; background: transparent; border-radius: 8px; padding: 4px 2px 5px; cursor: pointer; display: grid; gap: 1px; justify-items: center; color: var(--muted); font: 500 11px/1.2 var(--font-data); position: relative; transition: background-color .15s, color .15s; }
+.month:hover { background: var(--hover); color: var(--ink); }
+.month[aria-current="true"] { background: var(--ink); color: var(--bg); }
+.month svg { width: 100%; height: 22px; display: block; }
+.month .ev { position: absolute; top: 3px; right: 4px; width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
+.month[aria-current="true"] .ev { background: var(--bg); }
+.strip-cap { font-size: 11px; color: var(--faint); font-family: var(--font-data); padding: 0 6px; }
+
+.side { display: grid; gap: 14px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+.tag { display: inline-flex; align-items: center; gap: 6px; font: 500 11px/1 var(--font-data); text-transform: uppercase; letter-spacing: .06em; color: var(--accent); margin-bottom: 8px; }
+.tag::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+.tag.quiet { color: var(--faint); }
+.tag.quiet::before { background: var(--faint); }
+.story h2 { font-family: var(--font-display); font-size: 19px; margin: 0 0 6px; font-weight: 700; letter-spacing: -0.01em; text-wrap: balance; }
+.story p { margin: 0; color: var(--muted); }
+
+.glance { list-style: none; margin: 0; padding: 0; display: grid; }
+.glance li { display: grid; grid-template-columns: 1fr auto auto; gap: 12px; align-items: baseline; padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+.glance li:last-child { border-bottom: 0; }
+.glance .k { display: inline-flex; align-items: center; gap: 7px; color: var(--muted); }
+.glance .k i { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
+.glance .v { font-family: var(--font-data); font-variant-numeric: tabular-nums; font-weight: 500; text-align: right; }
+.glance .d { font-family: var(--font-data); font-variant-numeric: tabular-nums; font-size: 11px; color: var(--faint); text-align: right; min-width: 64px; }
+.glance li.head .v { font-size: 18px; }
+.pos { color: var(--up-ink); }
+.neg { color: var(--down-ink); }
+.card-h { font: 500 11px/1 var(--font-data); text-transform: uppercase; letter-spacing: .06em; color: var(--faint); margin: 0 0 6px; }
+
+.focus h3 { margin: 0 0 2px; font-family: var(--font-display); font-size: 17px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+.focus h3 i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+.focus .hint { color: var(--muted); margin: 0; font-size: 13px; }
+.flowlist { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
+.flowlist li { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; align-items: center; font-size: 13px; }
+.flowlist .bar { grid-column: 1 / -1; height: 4px; border-radius: 2px; background: var(--hover); overflow: hidden; }
+.flowlist .bar span { display: block; height: 100%; border-radius: 2px; }
+.flowlist .num { font-family: var(--font-data); font-variant-numeric: tabular-nums; color: var(--muted); }
+.plan { display: inline-flex; align-items: center; gap: 6px; }
+.plan i { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
+.sub-h { font: 500 11px/1 var(--font-data); text-transform: uppercase; letter-spacing: .06em; color: var(--faint); margin: 14px 0 0; }
+
+details.data { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px; }
+details.data summary { cursor: pointer; font-weight: 500; color: var(--muted); }
+.table-wrap { overflow-x: auto; margin-top: 10px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 480px; }
+th { text-align: left; font: 500 11px/1 var(--font-data); text-transform: uppercase; letter-spacing: .06em; color: var(--faint); padding: 8px 10px; border-bottom: 1px solid var(--line); }
+td { padding: 7px 10px; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+td.n, th.n { text-align: right; }
+td.n { font-family: var(--font-data); }
+.note { font-size: 11px; color: var(--faint); font-family: var(--font-data); margin: 10px 0 0; }
+
+/* Follow a customer */
+.follow-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.follow-list button { width: 100%; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 10px; align-items: center; text-align: left; background: transparent; border: 0; border-radius: 10px; padding: 8px; cursor: pointer; color: var(--ink); font: inherit; transition: background-color .15s; }
+.follow-list button:hover { background: var(--hover); }
+.avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--ink); color: var(--bg); display: grid; place-items: center; font: 600 12px/1 var(--font-body); grid-row: span 2; }
+.f-name { font-weight: 600; font-size: 13px; }
+.f-path { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; font-size: 11px; color: var(--muted); font-family: var(--font-data); }
+.f-path i { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
+.j-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; }
+.j-head .avatar { width: 40px; height: 40px; font-size: 14px; grid-row: auto; }
+.j-head h2 { margin: 0; font-family: var(--font-display); font-size: 18px; font-weight: 700; line-height: 1.2; }
+.j-head p { margin: 0; color: var(--muted); font-size: 12px; }
+.link-btn { background: transparent; border: 1px solid var(--line); border-radius: 999px; padding: 6px 10px; font: 500 12px/1 var(--font-body); color: var(--muted); cursor: pointer; transition: background-color .15s, color .15s; white-space: nowrap; }
+.link-btn:hover { background: var(--hover); color: var(--ink); }
+.link-btn:disabled { opacity: .4; cursor: default; }
+.steps { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 2px; }
+.steps li { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 0 10px; cursor: pointer; border-radius: 8px; padding: 6px 4px; transition: background-color .15s, opacity .2s; position: relative; }
+.steps li:hover { background: var(--hover); }
+.steps li.future { opacity: .38; }
+.steps li.now { background: var(--hover); }
+.steps li:not(:last-child)::before { content: ""; position: absolute; left: 14px; top: 30px; bottom: -6px; width: 2px; background: var(--line); }
+.steps .node { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font: 600 10px/1 var(--font-data); color: var(--ink); background: var(--panel); border: 3px solid var(--faint); position: relative; z-index: 1; }
+.steps .when { font: 500 11px/1.3 var(--font-data); color: var(--faint); }
+.steps .what { font-weight: 600; font-size: 13px; display: flex; flex-wrap: wrap; gap: 2px 8px; align-items: baseline; }
+.steps .what .m { font: 500 11px/1 var(--font-data); }
+.steps .why { color: var(--muted); font-size: 12.5px; margin: 2px 0 0; }
+.steps .crowd { color: var(--faint); font-size: 11px; font-family: var(--font-data); margin: 2px 0 0; }
+.j-controls { display: flex; gap: 6px; margin-top: 12px; flex-wrap: wrap; }
+.month.hop > span:last-child { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
+.j-trail { fill: none; stroke: var(--ink); stroke-width: 3; stroke-linecap: round; pointer-events: none; }
+.j-trail.past { stroke-dasharray: 1 6; stroke-width: 3; opacity: .75; }
+.j-start { fill: var(--panel); stroke: var(--ink); stroke-width: 2.5; }
+.j-stop circle { fill: var(--panel); stroke-width: 3; }
+.j-stop text { fill: var(--ink); font: 600 10px var(--font-data); }
+.j-avatar circle { fill: var(--ink); stroke: var(--panel); stroke-width: 3; }
+.j-avatar text { fill: var(--bg); font: 600 11px var(--font-body); }
+
+.tip { position: fixed; pointer-events: none; z-index: 10; background: var(--ink); color: var(--bg); padding: 8px 10px; border-radius: 8px; font-size: 12px; line-height: 1.45; max-width: 250px; opacity: 0; transition: opacity .12s; }
+.tip .m { font-family: var(--font-data); }
+button:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <p class="eyebrow">Subscriptions · 2026 · sample data</p>
+    <h1>Customer Migration</h1>
+    <p class="lede">Each ribbon is a group of customers who changed plans in the month. It starts where they left and its arrow ends where they arrived. Hover any part of the wheel to trace it.</p>
+  </header>
+
+  <section class="stage">
+    <div class="wheel">
+      <div class="wheel-head">
+        <div class="stamp" id="stamp">May<small>2026</small></div>
+        <button class="play" id="play"><svg viewBox="0 0 12 12" id="playIcon"><path d="M2 1v10l9-5z"/></svg><span id="playLabel">Play the year</span></button>
+      </div>
+      <svg id="chord" viewBox="-430 -350 860 700" role="img" aria-label="Chord diagram of customers moving between plans"></svg>
+      <div class="key" id="key"></div>
+      <div class="months" id="months"></div>
+      <div class="strip-cap">Bars under each month: net MRR from plan changes (green gained, orange lost). Dot: notable event.</div>
+    </div>
+    <div class="side">
+      <div class="card story" id="story"></div>
+      <div class="card" id="followCard"><p class="card-h">Follow a customer</p><ul class="follow-list" id="followList"></ul></div>
+      <div class="card" id="glanceCard"><p class="card-h">Month at a glance</p><ul class="glance" id="glance"></ul></div>
+      <div class="card focus" id="focus"></div>
+      <div class="card journey" id="journey" hidden></div>
+    </div>
+  </section>
+
+  <details class="data">
+    <summary id="dataTitle">Show the data as a table</summary>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>From</th><th>To</th><th>Type</th><th class="n">Customers</th><th class="n">MRR impact</th></tr></thead>
+        <tbody id="ledger"></tbody>
+      </table>
+    </div>
+    <p class="note">Sample data. Monthly price per account: Starter $19, Pro $49, Team $129.</p>
+  </details>
+</div>
+<div class="tip" id="tip"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script>
+(() => {
+  const PLANS = [
+    { id: 'free', name: 'Free', price: 0 },
+    { id: 'starter', name: 'Starter', price: 19 },
+    { id: 'pro', name: 'Pro', price: 49 },
+    { id: 'team', name: 'Team', price: 129 },
+    { id: 'churned', name: 'Cancelled', price: null },
+  ];
+  const C = 4, N = PLANS.length;
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const MONTHS_LONG = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const EVENTS = {
+    0: { t: 'New budgets, new seats', d: 'Teams start the year with fresh budgets, so Free → Starter upgrades lead the month.' },
+    4: { t: 'Pro price goes from $39 to $49', d: 'The price change pushes a wave of Pro customers down to Starter, and Pro cancellations more than double.' },
+    5: { t: 'Grandfathering offer', d: 'Existing Pro customers keep the old price for a year. Downgrades ease off but stay above the spring baseline.' },
+    8: { t: 'Team plan relaunch with SSO', d: 'SSO and audit logs move to Team. Pro → Team becomes the strongest upgrade path of the year.' },
+    10: { t: 'Black Friday and win-back campaign', d: '40% off annual Starter, plus win-back emails to cancelled accounts. Reactivations jump.' },
+  };
+
+  // ---- sample data -------------------------------------------------------
+  function mulberry32(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  const rng = mulberry32(20261014);
+  const DATA = MONTHS.map((_, m) => {
+    const M = Array.from({ length: N }, () => new Array(N).fill(0));
+    const set = (s, t, v) => { M[s][t] = Math.max(0, Math.round(v * (0.9 + rng() * 0.2))); };
+    const after = m >= 8, may = m === 4, jun = m === 5, nov = m === 10, jan = m === 0;
+    set(0, 1, 170 + 6 * m + (jan ? 70 : 0) + (nov ? 130 : 0));
+    set(0, 2, 38 + (after ? 8 : 0));
+    set(1, 2, 92 + 3 * m - (may ? 30 : 0));
+    set(1, 3, 10 + (after ? 26 : 0));
+    set(2, 3, 42 + (after ? 64 : 0));
+    set(1, 0, 30 + (may ? 12 : 0));
+    set(2, 1, 24 + (may ? 115 : 0) + (jun ? 48 : 0));
+    set(3, 2, 12);
+    set(0, C, 210 - 3 * m);
+    set(1, C, 68 + (may ? 28 : 0));
+    set(2, C, 32 + (may ? 44 : 0) + (jun ? 14 : 0));
+    set(3, C, 7 + (m === 6 ? 3 : 0));
+    set(C, 0, 28 + (nov ? 60 : 0));
+    set(C, 1, 10 + (nov ? 34 : 0));
+    set(C, 2, 4 + (nov ? 9 : 0));
+    return M;
+  });
+
+  const kind = (s, t) => t === C ? 'churn' : s === C ? 'winback' : t > s ? 'upgrade' : 'downgrade';
+  const KIND_LABEL = { upgrade: 'Upgrade', downgrade: 'Downgrade', churn: 'Cancellation', winback: 'Win-back' };
+  const KIND_VAR = { upgrade: '--up', downgrade: '--down', churn: '--churn', winback: '--winback' };
+  const mrr = (s, t, n) => t === C ? -PLANS[s].price * n : s === C ? PLANS[t].price * n : (PLANS[t].price - PLANS[s].price) * n;
+  const flows = M => { const out = []; for (let s = 0; s < N; s++) for (let t = 0; t < N; t++) if (s !== t && M[s][t] > 0) out.push({ s, t, n: M[s][t], k: kind(s, t), mrr: mrr(s, t, M[s][t]) }); return out; };
+  const summary = M => {
+    const f = flows(M), sum = k => d3.sum(f.filter(x => x.k === k), x => x.n);
+    return { moved: d3.sum(f, x => x.n), up: sum('upgrade'), down: sum('downgrade'), churn: sum('churn'), win: sum('winback'), net: d3.sum(f, x => x.mrr) };
+  };
+  const SUMS = DATA.map(summary);
+  const inOf = (M, g) => d3.sum(M, (r, i) => i !== g ? r[g] : 0);
+  const outOf = (M, g) => d3.sum(M[g], (v, j) => j !== g ? v : 0);
+  const YEAR = Array.from({ length: N }, (_, i) => Array.from({ length: N }, (_, j) => d3.sum(DATA, M => M[i][j])));
+
+  // ---- sample customers (each hop exists as a ribbon in the data) --------
+  const CUSTOMERS = [
+    { name: 'Northwind Studio', initials: 'NS', who: 'Design agency · 8 people',
+      start: { m: 0, d: 'Jan 12', plan: 0, note: 'Signed up on Free after a webinar.' },
+      hops: [
+        { m: 1, d: 'Feb 3', s: 0, t: 1, why: 'Hit the three-project limit on Free.' },
+        { m: 3, d: 'Apr 14', s: 1, t: 2, why: 'Needed client review links for a big rebrand project.' },
+        { m: 4, d: 'May 22', s: 2, t: 1, why: 'Pro went up to $49. They moved back down to save budget.' },
+        { m: 8, d: 'Sep 9', s: 1, t: 3, why: 'A new enterprise client required SSO, which is now part of Team.' },
+      ] },
+    { name: 'Halcyon Labs', initials: 'HL', who: 'Biotech startup · 40 people',
+      start: { m: 1, d: 'Feb 2', plan: 0, note: 'Two researchers tried it on Free.' },
+      hops: [
+        { m: 2, d: 'Mar 6', s: 0, t: 2, why: 'The trial went well, so they skipped Starter and went straight to Pro.' },
+        { m: 8, d: 'Sep 22', s: 2, t: 3, why: 'A second lab joined, and their security review asked for SSO, which is now part of Team.' },
+      ] },
+    { name: 'Pebble & Co', initials: 'PC', who: 'Online shop · 3 people',
+      start: { m: 0, d: 'Jan 1', plan: 1, note: 'Already on Starter since 2025.' },
+      hops: [
+        { m: 2, d: 'Mar 28', s: 1, t: 0, why: 'Quiet season. They downgraded to cut costs.' },
+        { m: 6, d: 'Jul 11', s: 0, t: 5, why: 'Stopped logging in after the summer sale ended.' },
+        { m: 10, d: 'Nov 24', s: 5, t: 1, why: 'Came back through the Black Friday win-back email.' },
+      ] },
+  ];
+
+  // ---- helpers -----------------------------------------------------------
+  const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+  const planColor = i => css('--' + PLANS[i].id);
+  const fmt = d3.format(','), money = v => (v > 0 ? '+' : v < 0 ? '−' : '') + '$' + d3.format(',')(Math.abs(Math.round(v)));
+  const signed = v => (v > 0 ? '+' : v < 0 ? '−' : '') + fmt(Math.abs(v));
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const state = { month: 4, focus: null, journey: null };
+  const viewM = () => state.journey ? YEAR : DATA[state.month];
+  let shown = DATA[state.month].map(r => r.slice());
+
+  // ---- chord geometry ----------------------------------------------------
+  // Ring, from the inside out: flow segments (innerR..segR), plan band, tick ring, tick labels, plan labels.
+  const innerR = 214, segR = 232, bandIn = 236, bandOut = 241, tickR = 244, nameR = 286;
+  const chordGen = d3.chordDirected().padAngle(0.05).sortSubgroups(d3.descending).sortChords(d3.descending);
+  const segArc = d3.arc().innerRadius(innerR).outerRadius(segR).padAngle(0.004).padRadius(innerR);
+  const bandArc = d3.arc().innerRadius(bandIn).outerRadius(bandOut).cornerRadius(2);
+  const ribbonGen = d3.ribbonArrow().radius(innerR - 2).padAngle(1 / innerR).headRadius(12);
+  const svg = d3.select('#chord');
+  const gRib = svg.append('g'), gSeg = svg.append('g'), gNum = svg.append('g'), gBand = svg.append('g'), gTick = svg.append('g'), gName = svg.append('g'), gJ = svg.append('g');
+  const JR = innerR - 12;
+  let lastChords = null;
+
+  // Journey helpers: 2 = the hop being shown now, 1 = an earlier hop, 0 = not on this customer's path
+  function jState(s, t) {
+    const j = state.journey; if (!j) return 0;
+    const hops = CUSTOMERS[j.c].hops;
+    for (let i = 0; i < j.step; i++) if (hops[i].s === s && hops[i].t === t) return i === j.step - 1 ? 2 : 1;
+    return 0;
+  }
+  const jPlans = () => { const J = CUSTOMERS[state.journey.c]; return new Set([J.start.plan, ...J.hops.slice(0, state.journey.step).map(h => h.t)]); };
+
+  const ribbonOpacity = (s, t) => {
+    const f = state.focus;
+    if (!f && state.journey) { const st = jState(s, t); return st === 2 ? 0.9 : st === 1 ? 0.45 : 0.05; }
+    if (!f) return 0.62;
+    if (f.g != null) return (s === f.g || t === f.g) ? 0.85 : 0.05;
+    return (s === f.s && t === f.t) ? 0.92 : 0.05;
+  };
+
+  function draw(M) {
+    const chords = chordGen(M);
+    lastChords = chords;
+    const m = viewM();
+
+    // Ribbons
+    gRib.selectAll('path').data(chords, d => d.source.index + '-' + d.target.index).join('path')
+      .attr('class', 'ribbon').attr('d', ribbonGen).attr('fill', d => planColor(d.source.index))
+      .on('pointerenter click', (e, d) => setFocus({ s: d.source.index, t: d.target.index }, e))
+      .on('pointermove', moveTip).on('pointerleave', () => setFocus(null));
+
+    // Flow segments: every ribbon end gets its own piece of the ring.
+    // Outgoing piece = solid, in the plan's own color. Incoming piece = light, in the color of the plan it came from.
+    const segs = chords.flatMap(d => [
+      { key: d.source.index + '-' + d.target.index + '-o', g: d.source.index, s: d.source.index, t: d.target.index, a0: d.source.startAngle, a1: d.source.endAngle, dir: 'out' },
+      { key: d.source.index + '-' + d.target.index + '-i', g: d.target.index, s: d.source.index, t: d.target.index, a0: d.target.startAngle, a1: d.target.endAngle, dir: 'in' },
+    ]);
+    gSeg.selectAll('path').data(segs, d => d.key).join('path')
+      .attr('class', 'seg')
+      .attr('d', d => segArc({ startAngle: d.a0, endAngle: d.a1 }))
+      .attr('fill', d => planColor(d.s))
+      .attr('data-dir', d => d.dir)
+      .on('pointerenter click', (e, d) => setFocus({ s: d.s, t: d.t }, e))
+      .on('pointermove', moveTip).on('pointerleave', () => setFocus(null));
+
+    // Customer counts on the larger outgoing ends
+    const nums = chords.filter(d => (d.source.endAngle - d.source.startAngle) * innerR >= 20 && d.source.value >= 25);
+    gNum.selectAll('text').data(nums, d => d.source.index + '-' + d.target.index).join('text')
+      .attr('class', 'flow-num').attr('text-anchor', 'middle').attr('dy', '0.35em')
+      .attr('transform', d => { const a = (d.source.startAngle + d.source.endAngle) / 2, r = innerR - 15; return `translate(${Math.sin(a) * r},${-Math.cos(a) * r})`; })
+      .text(d => fmt(Math.round(d.source.value)));
+
+    // Plan band
+    gBand.selectAll('path').data(chords.groups, d => d.index).join('path')
+      .attr('class', 'band').attr('d', bandArc).attr('fill', d => planColor(d.index))
+      .on('pointerenter click', (e, d) => setFocus({ g: d.index }, e))
+      .on('pointermove', moveTip).on('pointerleave', () => setFocus(null));
+
+    // Ticks: a mark every 50 moves, labelled every 100 (every 200 on big plans)
+    const ticks = chords.groups.flatMap(g => {
+      const k = (g.endAngle - g.startAngle) / g.value, every = g.value > 900 ? 200 : 100;
+      return d3.range(0, g.value + 0.001, 50).map(v => ({ g: g.index, v, a: g.startAngle + v * k, label: v % every === 0 && v > 0 }));
+    });
+    gTick.selectAll('g').data(ticks, d => d.g + ':' + d.v).join(enter => {
+      const t = enter.append('g').attr('class', 'tick');
+      t.append('line').attr('x1', tickR).attr('x2', tickR + 5);
+      t.append('text');
+      return t;
+    }).attr('transform', d => `rotate(${d.a * 180 / Math.PI - 90})`)
+      .each(function (d) {
+        const flip = d.a > Math.PI;
+        d3.select(this).select('line').attr('x2', tickR + (d.label ? 7 : 4));
+        d3.select(this).select('text')
+          .attr('x', tickR + 10).attr('dy', '0.35em')
+          .attr('transform', flip ? `rotate(180 ${tickR + 10} 0) translate(${0} 0)` : null)
+          .attr('text-anchor', flip ? 'end' : 'start')
+          .text(d.label ? fmt(d.v) : '');
+      });
+
+    // Plan names with in / out / net
+    const names = gName.selectAll('g').data(chords.groups, d => d.index).join(enter => {
+      const g = enter.append('g');
+      g.append('text').attr('class', 'plan-name');
+      g.append('text').attr('class', 'plan-sub').attr('dy', 16);
+      g.append('text').attr('class', 'plan-sub net').attr('dy', 30);
+      return g;
+    });
+    names.each(function (d) {
+      const a = (d.startAngle + d.endAngle) / 2, s = Math.sin(a), c = Math.cos(a);
+      const anchor = Math.abs(s) < 0.25 ? 'middle' : s > 0 ? 'start' : 'end';
+      const x = s * nameR, y = -c * nameR + (c > 0.7 ? -30 : c < -0.7 ? 14 : -8);
+      const inn = inOf(m, d.index), out = outOf(m, d.index), net = inn - out;
+      const g = d3.select(this).attr('transform', `translate(${x},${y})`);
+      g.selectAll('text').attr('text-anchor', anchor);
+      g.select('.plan-name').text(PLANS[d.index].name);
+      g.select('.plan-sub:not(.net)').text(`${fmt(inn)} in · ${fmt(out)} out`);
+      g.select('.net').text(`net ${signed(net)}`).attr('fill', net >= 0 ? css('--up-ink') : css('--down-ink'));
+    });
+
+    applyHighlight();
+  }
+
+  function applyHighlight() {
+    const f = state.focus, jm = state.journey && !f;
+    gRib.selectAll('path').attr('fill-opacity', d => ribbonOpacity(d.source.index, d.target.index));
+    gSeg.selectAll('path').attr('fill-opacity', d => {
+      const base = d.dir === 'out' ? 1 : 0.38;
+      if (jm) return jState(d.s, d.t) ? base : base * 0.15;
+      if (!f) return base;
+      const on = f.g != null ? d.g === f.g || d.s === f.g || d.t === f.g : d.s === f.s && d.t === f.t;
+      return on ? base : base * 0.18;
+    });
+    gNum.selectAll('text').attr('opacity', d => jm ? (jState(d.source.index, d.target.index) ? 1 : 0.12) : !f ? 1 : (f.g != null ? (d.source.index === f.g || d.target.index === f.g) : (d.source.index === f.s && d.target.index === f.t)) ? 1 : 0.15);
+    gBand.selectAll('path').attr('opacity', d => jm ? (jPlans().has(d.index) ? 1 : 0.3) : !f ? 1 : (f.g != null ? d.index === f.g : d.index === f.s || d.index === f.t) ? 1 : 0.3);
+  }
+
+  // ---- tooltip -----------------------------------------------------------
+  const tip = document.getElementById('tip');
+  function moveTip(e) {
+    const pad = 14, w = tip.offsetWidth, h = tip.offsetHeight;
+    let x = e.clientX + pad, y = e.clientY + pad;
+    if (x + w > innerWidth - 8) x = e.clientX - w - pad;
+    if (y + h > innerHeight - 8) y = e.clientY - h - pad;
+    tip.style.left = x + 'px'; tip.style.top = y + 'px';
+  }
+  function setFocus(f, e) {
+    state.focus = f;
+    applyHighlight(); renderFocus();
+    if (!f || !e) { tip.style.opacity = 0; return; }
+    const M = viewM();
+    if (f.g != null) {
+      const inn = inOf(M, f.g), out = outOf(M, f.g);
+      tip.innerHTML = `<b>${PLANS[f.g].name}</b><br><span class="m">${fmt(inn)}</span> arrived · <span class="m">${fmt(out)}</span> left<br>Net <span class="m">${signed(inn - out)}</span> customers`;
+    } else {
+      const n = M[f.s][f.t];
+      tip.innerHTML = `<b>${PLANS[f.s].name} → ${PLANS[f.t].name}</b><br><span class="m">${fmt(n)}</span> customers · ${KIND_LABEL[kind(f.s, f.t)]}<br>MRR <span class="m">${money(mrr(f.s, f.t, n))}</span>`;
+    }
+    tip.style.opacity = 1; moveTip(e);
+  }
+
+  // ---- side column -------------------------------------------------------
+  function renderSide() {
+    const m = state.month, ev = EVENTS[m], S = SUMS[m], P = m > 0 ? SUMS[m - 1] : null;
+    document.getElementById('story').innerHTML = ev
+      ? `<span class="tag">${MONTHS_LONG[m]} event</span><h2>${ev.t}</h2><p>${ev.d}</p>`
+      : `<span class="tag quiet">${MONTHS_LONG[m]}</span><h2>A steady month</h2><p>No pricing or product changes. ${fmt(S.up)} customers upgraded and ${fmt(S.churn)} left, close to the usual pattern.</p>`;
+    const vs = (a, b) => P ? `${signed(a - b)} vs ${MONTHS[m - 1]}` : '';
+    const row = (label, color, v, d, cls = '') => `<li class="${cls}"><span class="k">${color ? `<i style="background:var(${color})"></i>` : ''}${label}</span><span class="v ${cls === 'head' ? (S.net >= 0 ? 'pos' : 'neg') : ''}">${v}</span><span class="d">${d}</span></li>`;
+    document.getElementById('glance').innerHTML =
+      row('Net MRR', null, money(S.net), P ? `${money(S.net - P.net)} vs ${MONTHS[m - 1]}` : '', 'head') +
+      row('Customers moved', null, fmt(S.moved), vs(S.moved, P && P.moved)) +
+      row('Upgrades', '--up', fmt(S.up), vs(S.up, P && P.up)) +
+      row('Downgrades', '--down', fmt(S.down), vs(S.down, P && P.down)) +
+      row('Cancelled', '--churn', fmt(S.churn), vs(S.churn, P && P.churn)) +
+      row('Won back', '--winback', fmt(S.win), vs(S.win, P && P.win));
+  }
+
+  function flowItems(list, max) {
+    return list.map(x => `<li><span class="plan"><i style="background:var(--${PLANS[x.i].id})"></i>${x.label}</span><span class="num">${fmt(x.n)}</span><span class="bar"><span style="width:${(x.n / max * 100).toFixed(1)}%;background:var(--${PLANS[x.i].id})"></span></span></li>`).join('');
+  }
+
+  function renderFocus() {
+    const el = document.getElementById('focus'), f = state.focus, M = DATA[state.month];
+    if (!f) {
+      el.innerHTML = `<p class="card-h">Trace</p><h3>Pick a plan or a ribbon</h3><p class="hint">Hover the outer colored band to follow a whole plan. Hover a ribbon or a ring segment to see one movement and how it changed across the year.</p>`;
+      return;
+    }
+    if (f.g != null) {
+      const g = f.g;
+      const ins = PLANS.map((q, i) => ({ i, label: 'from ' + q.name, n: i === g ? 0 : M[i][g] })).filter(x => x.n > 0).sort((a, b) => b.n - a.n);
+      const outs = PLANS.map((q, j) => ({ i: j, label: 'to ' + q.name, n: j === g ? 0 : M[g][j] })).filter(x => x.n > 0).sort((a, b) => b.n - a.n);
+      const max = d3.max([...ins, ...outs], x => x.n) || 1;
+      const net = d3.sum(ins, x => x.n) - d3.sum(outs, x => x.n);
+      el.innerHTML = `<p class="card-h">Trace</p><h3><i style="background:var(--${PLANS[g].id})"></i>${PLANS[g].name}</h3>
+        <p class="hint">Net customers in ${MONTHS_LONG[state.month]}: <b class="${net >= 0 ? 'pos' : 'neg'}">${signed(net)}</b></p>
+        ${ins.length ? `<p class="sub-h">Arrived</p><ul class="flowlist">${flowItems(ins, max)}</ul>` : ''}
+        ${outs.length ? `<p class="sub-h">Left</p><ul class="flowlist">${flowItems(outs, max)}</ul>` : ''}`;
+    } else {
+      const n = M[f.s][f.t], k = kind(f.s, f.t), v = mrr(f.s, f.t, n);
+      const series = DATA.map(D => D[f.s][f.t]), max = d3.max(series) || 1;
+      const bars = series.map((v, i) => `<rect x="${i * 20 + 2}" y="${42 - v / max * 34}" width="16" height="${Math.max(1, v / max * 34)}" rx="2" fill="${i === state.month ? `var(--${PLANS[f.s].id})` : 'var(--line)'}"></rect>`).join('');
+      el.innerHTML = `<p class="card-h">Trace</p><h3><i style="background:var(--${PLANS[f.s].id})"></i>${PLANS[f.s].name} → ${PLANS[f.t].name}</h3>
+        <p class="hint">${KIND_LABEL[k]} · <b>${fmt(n)}</b> customers · MRR <b class="${v >= 0 ? 'pos' : 'neg'}">${money(v)}</b></p>
+        <p class="sub-h">This path across 2026 · peak ${fmt(max)}</p>
+        <svg viewBox="0 0 240 56" width="100%" style="max-width:360px;display:block;margin-top:8px">${bars}
+          <text x="2" y="54" font-size="9" fill="var(--faint)" font-family="IBM Plex Mono, monospace">Jan</text>
+          <text x="238" y="54" font-size="9" fill="var(--faint)" text-anchor="end" font-family="IBM Plex Mono, monospace">Dec</text></svg>`;
+    }
+  }
+
+  function renderKey() {
+    document.getElementById('key').innerHTML =
+      PLANS.map(p => `<span><i style="background:var(--${p.id})"></i>${p.name}</span>`).join('') +
+      `<span class="how"><span><i class="swatch-out"></i>Solid segment: customers who left</span><span><i class="swatch-in"></i>Light segment: customers who arrived, in the color of their old plan</span><span>Numbers: customers per move</span></span>`;
+  }
+
+  function renderTable() {
+    const m = state.month;
+    document.getElementById('dataTitle').textContent = `Show ${MONTHS_LONG[m]} as a table`;
+    document.getElementById('ledger').innerHTML = flows(DATA[m]).sort((a, b) => b.n - a.n).map(x => `<tr>
+      <td><span class="plan"><i style="background:var(--${PLANS[x.s].id})"></i>${PLANS[x.s].name}</span></td>
+      <td><span class="plan"><i style="background:var(--${PLANS[x.t].id})"></i>${PLANS[x.t].name}</span></td>
+      <td>${KIND_LABEL[x.k]}</td><td class="n">${fmt(x.n)}</td>
+      <td class="n ${x.mrr > 0 ? 'pos' : x.mrr < 0 ? 'neg' : ''}">${money(x.mrr)}</td></tr>`).join('');
+  }
+
+  // ---- month strip -------------------------------------------------------
+  const monthsEl = document.getElementById('months');
+  const maxNet = d3.max(SUMS, s => Math.abs(s.net));
+  monthsEl.innerHTML = MONTHS.map((mo, i) => {
+    const v = SUMS[i].net, h = Math.max(1.5, Math.abs(v) / maxNet * 9);
+    return `<button class="month" data-m="${i}" aria-label="${MONTHS_LONG[i]}, net MRR ${money(v)}">${EVENTS[i] ? '<span class="ev"></span>' : ''}
+      <svg viewBox="0 0 30 22" preserveAspectRatio="none"><line x1="3" x2="27" y1="11" y2="11" stroke="var(--line)"/><rect x="9" y="${v >= 0 ? 11 - h : 11}" width="12" height="${h}" rx="1.5" fill="var(${v >= 0 ? '--up' : '--down'})"/></svg>
+      <span>${mo}</span></button>`;
+  }).join('');
+  monthsEl.addEventListener('click', e => { const b = e.target.closest('.month'); if (b) { stop(); goTo(+b.dataset.m); } });
+
+  let timer = null;
+  function tweenTo(to, done) {
+    const from = shown.map(r => r.slice());
+    if (timer) timer.stop();
+    if (reduced) { shown = to.map(r => r.slice()); draw(shown); if (done) done(); return; }
+    timer = d3.timer(el => {
+      const k = Math.min(1, el / 650), e = d3.easeCubicInOut(k);
+      shown = from.map((r, i) => r.map((v, j) => v + (to[i][j] - v) * e));
+      draw(shown);
+      if (k >= 1) { timer.stop(); if (done) done(); }
+    });
+  }
+  function setStrip(current, hopMonths = []) {
+    monthsEl.querySelectorAll('.month').forEach(b => {
+      b.setAttribute('aria-current', +b.dataset.m === current ? 'true' : 'false');
+      b.classList.toggle('hop', hopMonths.includes(+b.dataset.m));
+    });
+  }
+  function goTo(m) {
+    if (state.journey) exitJourney();
+    state.month = m;
+    setStrip(m);
+    document.getElementById('stamp').innerHTML = `${MONTHS_LONG[m]}<small>2026</small>`;
+    renderSide(); renderFocus(); renderTable();
+    tweenTo(DATA[m]);
+  }
+
+  // ---- follow a customer -------------------------------------------------
+  const jCard = document.getElementById('journey');
+  const monthViewCards = ['story', 'followCard', 'glanceCard', 'focus'].map(id => document.getElementById(id));
+  let jPlay = null;
+
+  function renderFollow() {
+    document.getElementById('followList').innerHTML = CUSTOMERS.map((c, i) => {
+      const path = [c.start.plan, ...c.hops.map(h => h.t)];
+      return `<li><button data-c="${i}"><span class="avatar">${c.initials}</span><span class="f-name">${c.name}</span>
+        <span class="f-path">${path.map(p => `<span class="plan"><i style="background:var(--${PLANS[p].id})"></i>${PLANS[p].name}</span>`).join('<span aria-hidden="true">→</span>')}</span></button></li>`;
+    }).join('');
+  }
+  document.getElementById('followList').addEventListener('click', e => { const b = e.target.closest('button'); if (b) startJourney(+b.dataset.c); });
+
+  function startJourney(c) {
+    stop();
+    state.journey = { c, step: 0 }; state.focus = null;
+    monthViewCards.forEach(el => el.hidden = true);
+    jCard.hidden = false;
+    document.getElementById('stamp').innerHTML = `All of 2026<small>following ${CUSTOMERS[c].name}</small>`;
+    renderJourneyCard(); setStrip(CUSTOMERS[c].start.m, CUSTOMERS[c].hops.map(h => h.m));
+    tweenTo(YEAR, () => { applyHighlight(); renderJourney(false); playJourney(); });
+  }
+  function exitJourney() {
+    pauseJourney();
+    state.journey = null;
+    gJ.selectAll('*').interrupt().remove();
+    jCard.hidden = true;
+    monthViewCards.forEach(el => el.hidden = false);
+  }
+  function setStep(k, animate) {
+    const J = CUSTOMERS[state.journey.c];
+    state.journey.step = Math.max(0, Math.min(J.hops.length, k));
+    const st = state.journey.step;
+    setStrip(st === 0 ? J.start.m : J.hops[st - 1].m, J.hops.map(h => h.m));
+    applyHighlight(); renderJourney(animate); renderJourneyCard();
+  }
+  function playJourney() {
+    pauseJourney();
+    const J = CUSTOMERS[state.journey.c];
+    if (state.journey.step >= J.hops.length) setStep(0, false);
+    const tick = () => {
+      if (!jPlay) return;
+      if (!state.journey) return pauseJourney();
+      if (state.journey.step >= J.hops.length) { pauseJourney(); renderJourneyCard(); return; }
+      setStep(state.journey.step + 1, true);
+    };
+    jPlay = setInterval(tick, 2100);
+    setTimeout(tick, 400);
+    renderJourneyCard();
+  }
+  function pauseJourney() { if (jPlay) clearInterval(jPlay); jPlay = null; }
+
+  // Point on the inner circle at the middle of one end of a ribbon
+  function hopPoint(s, t, end) {
+    const ch = lastChords.find(c => c.source.index === s && c.target.index === t);
+    const g = end === 'src' ? ch.source : ch.target, a = (g.startAngle + g.endAngle) / 2;
+    return { a, x: Math.sin(a) * JR, y: -Math.cos(a) * JR };
+  }
+  function hopPath(J, i) {
+    const h = J.hops[i], p0 = hopPoint(h.s, h.t, 'src'), p1 = hopPoint(h.s, h.t, 'tgt');
+    let d;
+    if (i === 0) d = `M${p0.x},${p0.y}`;
+    else {
+      // Slide along the plan's ring from where they arrived to where they leave next
+      const q = hopPoint(J.hops[i - 1].s, J.hops[i - 1].t, 'tgt');
+      d = `M${q.x},${q.y} A${JR},${JR} 0 0 ${p0.a > q.a ? 1 : 0} ${p0.x},${p0.y}`;
+    }
+    return d + ` Q0,0 ${p1.x},${p1.y}`;
+  }
+
+  function renderJourney(animate) {
+    gJ.selectAll('*').interrupt().remove();
+    if (!state.journey || !lastChords) return;
+    const J = CUSTOMERS[state.journey.c], k = state.journey.step;
+    const start = hopPoint(J.hops[0].s, J.hops[0].t, 'src');
+    const trails = d3.range(k).map(i => gJ.append('path').attr('class', 'j-trail' + (i < k - 1 ? ' past' : '')).attr('d', hopPath(J, i)));
+    gJ.append('circle').attr('class', 'j-start').attr('r', 6).attr('cx', start.x).attr('cy', start.y);
+    const stops = d3.range(k).map(i => {
+      const h = J.hops[i], p = hopPoint(h.s, h.t, 'tgt');
+      const g = gJ.append('g').attr('class', 'j-stop').attr('transform', `translate(${p.x},${p.y})`);
+      g.append('circle').attr('r', 10).attr('stroke', planColor(h.t));
+      g.append('text').attr('text-anchor', 'middle').attr('dy', '0.35em').text(i + 1);
+      return g;
+    });
+    const end = k === 0 ? start : hopPoint(J.hops[k - 1].s, J.hops[k - 1].t, 'tgt');
+    const av = gJ.append('g').attr('class', 'j-avatar').attr('transform', `translate(${end.x},${end.y})`);
+    av.append('circle').attr('r', 15);
+    av.append('text').attr('text-anchor', 'middle').attr('dy', '0.35em').text(J.initials);
+
+    if (animate && k > 0 && !reduced) {
+      const cur = trails[k - 1].node(), L = cur.getTotalLength(), dur = 1300;
+      d3.select(cur).attr('stroke-dasharray', `${L} ${L}`).attr('stroke-dashoffset', L)
+        .transition().duration(dur).ease(d3.easeCubicInOut).attr('stroke-dashoffset', 0);
+      av.transition().duration(dur).ease(d3.easeCubicInOut)
+        .attrTween('transform', () => t => { const p = cur.getPointAtLength(t * L); return `translate(${p.x},${p.y})`; });
+      stops[k - 1].attr('opacity', 0).transition().delay(dur - 150).duration(200).attr('opacity', 1);
+    }
+  }
+
+  function billSpark(J, k) {
+    // Monthly bill for this account across 2026
+    const plan = new Array(12).fill(null);
+    let cur = null;
+    for (let m = 0; m < 12; m++) {
+      if (m === J.start.m) cur = J.start.plan;
+      J.hops.forEach(h => { if (h.m === m) cur = h.t; });
+      plan[m] = cur;
+    }
+    const price = p => p == null ? null : p === C ? 0 : PLANS[p].price;
+    const vals = plan.map(price), max = d3.max(vals) || 19;
+    const x = d3.scaleLinear([0, 12], [4, 236]), y = d3.scaleLinear([0, max], [50, 8]);
+    const pts = vals.map((v, m) => ({ m, v })).filter(d => d.v != null);
+    pts.push({ m: 12, v: pts[pts.length - 1].v });
+    const line = d3.line().x(d => x(d.m)).y(d => y(d.v)).curve(d3.curveStepAfter);
+    const area = d3.area().x(d => x(d.m)).y0(50).y1(d => y(d.v)).curve(d3.curveStepAfter);
+    const curM = k === 0 ? J.start.m : J.hops[k - 1].m;
+    const total = d3.sum(vals.slice(0, 12), v => v || 0);
+    return `<p class="card-h" style="margin:14px 0 0">Monthly bill in 2026 · ${'$' + fmt(total)} for the year</p>
+      <svg viewBox="0 0 240 66" width="100%" style="display:block;margin-top:6px;max-width:420px">
+        <line x1="4" x2="236" y1="50" y2="50" stroke="var(--line)"/>
+        <path d="${area(pts)}" fill="var(--ink)" fill-opacity=".07"/>
+        <path d="${line(pts)}" fill="none" stroke="var(--ink)" stroke-width="2" stroke-linejoin="round"/>
+        <line x1="${x(curM + 0.5)}" x2="${x(curM + 0.5)}" y1="4" y2="50" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="2 3"/>
+        <circle cx="${x(curM + 0.5)}" cy="${y(vals[curM] || 0)}" r="4" fill="var(--accent)" stroke="var(--panel)" stroke-width="2"/>
+        <text x="236" y="${y(max) - 2}" text-anchor="end" font-size="9" fill="var(--faint)" font-family="IBM Plex Mono, monospace">$${fmt(max)}/mo</text>
+        <text x="4" y="63" font-size="9" fill="var(--faint)" font-family="IBM Plex Mono, monospace">Jan</text>
+        <text x="236" y="63" text-anchor="end" font-size="9" fill="var(--faint)" font-family="IBM Plex Mono, monospace">Dec</text>
+      </svg>`;
+  }
+
+  function renderJourneyCard() {
+    if (!state.journey) return;
+    const J = CUSTOMERS[state.journey.c], k = state.journey.step;
+    const startLi = `<li data-k="0" class="${k === 0 ? 'now' : ''}"><span class="node" style="border-color:var(--${PLANS[J.start.plan].id})">•</span>
+      <div><div class="when">${J.start.d}</div><div class="what">Starts on ${PLANS[J.start.plan].name}</div><p class="why">${J.start.note}</p></div></li>`;
+    const hopLis = J.hops.map((h, i) => {
+      const v = mrr(h.s, h.t, 1);
+      const cls = i + 1 === k ? 'now' : i + 1 > k ? 'future' : '';
+      return `<li data-k="${i + 1}" class="${cls}"><span class="node" style="border-color:var(--${PLANS[h.t].id})">${i + 1}</span>
+        <div><div class="when">${h.d} · ${KIND_LABEL[kind(h.s, h.t)]}</div>
+        <div class="what">${PLANS[h.s].name} → ${PLANS[h.t].name}<span class="m ${v > 0 ? 'pos' : v < 0 ? 'neg' : ''}">${money(v)}/mo</span></div>
+        <p class="why">${h.why}</p>
+        <p class="crowd">One of ${fmt(YEAR[h.s][h.t])} customers who made this move in 2026</p></div></li>`;
+    }).join('');
+    const done = k >= J.hops.length;
+    jCard.innerHTML = `<div class="j-head"><span class="avatar">${J.initials}</span><div><h2>${J.name}</h2><p>${J.who}</p></div>
+        <button class="link-btn" id="jBack">All customers</button></div>
+      ${billSpark(J, k)}
+      <ol class="steps" id="jSteps">${startLi}${hopLis}</ol>
+      <div class="j-controls">
+        <button class="link-btn" id="jPrev" ${k === 0 ? 'disabled' : ''}>Previous</button>
+        <button class="link-btn" id="jPlay">${jPlay ? 'Pause' : done ? 'Replay' : 'Play'}</button>
+        <button class="link-btn" id="jNext" ${done ? 'disabled' : ''}>Next</button>
+      </div>`;
+    jCard.querySelector('#jBack').onclick = () => goTo(state.month);
+    jCard.querySelector('#jPrev').onclick = () => { pauseJourney(); setStep(k - 1, false); };
+    jCard.querySelector('#jNext').onclick = () => { pauseJourney(); setStep(k + 1, true); };
+    jCard.querySelector('#jPlay').onclick = () => { if (jPlay) { pauseJourney(); renderJourneyCard(); } else playJourney(); };
+    jCard.querySelectorAll('#jSteps li').forEach(li => li.onclick = () => { pauseJourney(); const n = +li.dataset.k; setStep(n, n === k + 1); });
+  }
+
+  let playInt = null;
+  const playIcon = document.getElementById('playIcon'), playLabel = document.getElementById('playLabel');
+  function stop() { if (playInt) clearInterval(playInt); playInt = null; playIcon.innerHTML = '<path d="M2 1v10l9-5z"/>'; playLabel.textContent = 'Play the year'; }
+  document.getElementById('play').addEventListener('click', () => {
+    if (playInt) return stop();
+    playIcon.innerHTML = '<path d="M2 1h3v10H2zM7 1h3v10H7z"/>'; playLabel.textContent = 'Pause';
+    goTo((state.month + 1) % 12);
+    playInt = setInterval(() => goTo((state.month + 1) % 12), 2400);
+  });
+
+  const repaint = () => { draw(shown); renderJourney(false); };
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', repaint);
+  new MutationObserver(repaint).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+  renderKey();
+  renderFollow();
+  draw(shown);
+  goTo(state.month);
+})();
+</script>
+
+</html>
